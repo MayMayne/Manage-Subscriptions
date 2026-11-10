@@ -115,10 +115,16 @@ final class SubscriptionScanner {
     private static let maxFileBytes: UInt = 1 << 20
     /// Ceiling for the whole scan, so a pathological tree cannot fill memory.
     private static let maxTotalThreadsRead: Int = 4000
+    /// 190 app groups at depth 4 is unbounded work; stop after this many
+    /// directories or this many seconds, whichever comes first.
+    private static let maxDirectories = 3000
+    private static let maxSeconds: TimeInterval = 120
 
     var onProgress: ((ScanProgress) -> Void)?
     private var cancelled = false
     private var filesRead = 0
+    private var directoriesVisited = 0
+    private var deadline = Date.distantFuture
 
     func cancel() { cancelled = true }
 
@@ -126,6 +132,8 @@ final class SubscriptionScanner {
 
     func scan(includeAppContainers: Bool = false) -> [SandboxSubscription] {
         filesRead = 0
+        directoriesVisited = 0
+        deadline = Date().addingTimeInterval(Self.maxSeconds)
         var records: [SandboxSubscription] = []
         var seen = Set<String>()
 
@@ -200,8 +208,15 @@ final class SubscriptionScanner {
             while let node = queue.popLast() {
                 if cancelled { break }
                 if node.depth > 4 { continue }
+                // A global budget: without it 190 roots × depth 4 runs for
+                // many minutes and looks like a hang.
+                if directoriesVisited >= Self.maxDirectories || Date() > deadline {
+                    WQLog.message("scan budget reached after \(directoriesVisited) directories")
+                    break
+                }
                 guard visited.count < 2000, !visited.contains(node.path) else { continue }
                 visited.insert(node.path)
+                directoriesVisited += 1
 
                 report(total: roots.count, scanned: rootIndex, current: root.name,
                        found: records.count, lastPath: node.path)
@@ -236,7 +251,7 @@ final class SubscriptionScanner {
             }
         }
 
-        WQLog.message("scan done: \(records.count) records from \(filesRead) files\(cancelled ? " (cancelled)" : "")")
+        WQLog.message("scan done: \(records.count) records from \(filesRead) files in \(directoriesVisited) directories\(cancelled ? " (cancelled)" : "")")
         return records.sorted {
             ($0.purchaseDate ?? .distantPast) > ($1.purchaseDate ?? .distantPast)
         }
