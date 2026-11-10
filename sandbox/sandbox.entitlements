@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- worse_query needs one App Group container it controls: the query is
+	     answered by containermanagerd for this group and the sandbox
+	     extension it returns is what opens everything else. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.ctdo.net.sandbox</string>
+	</array>
+</dict>
+</plist>

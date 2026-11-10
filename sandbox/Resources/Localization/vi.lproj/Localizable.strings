@@ -15,3 +15,44 @@
 
 /* Manage App Store Subscriptions */
 "manage_appstore_subscriptions" = "Quản lý đăng ký App Store";
+
+/* Sandbox section */
+"sandbox_section_header" = "Trình đọc Sandbox";
+"sandbox_section_footer" = "Đọc receipt và transaction store trong container của app khác bằng worse_query. Cần quyền App Group và iOS 26.0–26.7.2 hoặc 27.0–27.2.x.";
+"sandbox_unsupported" = "worse_query chỉ hỗ trợ iOS 26.0–26.7.2 và 27.0–27.2.x. Các công cụ này bị tắt trên phiên bản hiện tại.";
+"sandbox_subscriptions" = "Đăng ký Sandbox";
+"sandbox_files" = "Tệp trong Container";
+"sandbox_diagnostics" = "Chẩn đoán khai thác";
+
+/* Subscriptions scan */
+"sandbox_scan_header" = "Quét";
+"sandbox_scan" = "Quét receipt và transaction store";
+"sandbox_scan_footer" = "Duyệt bundle của các app để lấy StoreKit receipt và container StoreKit/appstored để lấy transaction. Dữ liệu không rời khỏi máy.";
+"sandbox_scan_empty" = "Không tìm thấy đăng ký sandbox nào.";
+"sandbox_scan_found" = "Tìm thấy %d giao dịch.";
+"sandbox_scan_cancelled" = "Đã huỷ quét.";
+"sandbox_results_header" = "Giao dịch";
+"sandbox_no_group" = "Bản build này không có App Group container. worse_query cần App Group để cấp extension — hãy thêm group trong Signing & Capabilities hoặc cài bằng công cụ giữ nguyên entitlements.";
+
+/* Explorer */
+"explorer_footer" = "Đường dẫn ngoài sandbox của app chỉ mở được sau khi worse_query cấp extension cho chúng.";
+"root_app_data" = "Dữ liệu app";
+"root_app_groups" = "App Group";
+"root_extensions" = "Dữ liệu extension";
+"root_daemons" = "Daemon";
+"root_system_data" = "Dữ liệu hệ thống";
+"root_system_groups" = "System Group";
+"root_bundles" = "Bundle ứng dụng";
+"root_own_sandbox" = "App này";
+"folder_empty" = "Thư mục trống hoặc không đọc được.";
+"loading" = "Đang tải…";
+"retry" = "Thử lại";
+"items" = "mục";
+"done" = "Xong";
+"cancel" = "Huỷ";
+
+/* Diagnostics */
+"diagnostics_group_hint" = "Nếu App Group hiện “none”, worse_query không thể cấp extension: bản sideload thường làm mất entitlement. Kiểm tra bằng mã group bên dưới.";
+"diagnostics_run" = "Chạy kiểm tra";
+"diagnostics_results" = "Kết quả";
+"diagnostics_credit" = "Kỹ thuật thoát sandbox: worse_query của Taj C (forcequit) — GPL-3.0-or-later.";

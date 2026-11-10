@@ -15,3 +15,44 @@
 
 /* Manage App Store Subscriptions */
 "manage_appstore_subscriptions" = "Manage App Store Subscriptions";
+
+/* Sandbox section */
+"sandbox_section_header" = "Sandbox Inspector";
+"sandbox_section_footer" = "Reads receipt and transaction stores inside other apps' containers using worse_query. Requires an App Group entitlement and iOS 26.0–26.7.2 or 27.0–27.2.x.";
+"sandbox_unsupported" = "worse_query supports iOS 26.0–26.7.2 and 27.0–27.2.x only. These tools are disabled on this system version.";
+"sandbox_subscriptions" = "Sandbox Subscriptions";
+"sandbox_files" = "Container Files";
+"sandbox_diagnostics" = "Exploit Diagnostics";
+
+/* Subscriptions scan */
+"sandbox_scan_header" = "Scan";
+"sandbox_scan" = "Scan receipt and transaction stores";
+"sandbox_scan_footer" = "Walks app bundles for StoreKit receipts and the StoreKit/appstored containers for transaction records. Nothing leaves the device.";
+"sandbox_scan_empty" = "No sandbox subscriptions found.";
+"sandbox_scan_found" = "Found %d transactions.";
+"sandbox_scan_cancelled" = "Scan cancelled.";
+"sandbox_results_header" = "Transactions";
+"sandbox_no_group" = "This build has no App Group container. worse_query needs one to issue extensions — rebuild with a group in Signing & Capabilities, or install through a tool that keeps entitlements.";
+
+/* Explorer */
+"explorer_footer" = "Paths outside this app's sandbox only open after worse_query issues an extension for them.";
+"root_app_data" = "App Data";
+"root_app_groups" = "App Groups";
+"root_extensions" = "Extension Data";
+"root_daemons" = "Daemons";
+"root_system_data" = "System Data";
+"root_system_groups" = "System Groups";
+"root_bundles" = "App Bundles";
+"root_own_sandbox" = "This App";
+"folder_empty" = "This folder is empty or could not be read.";
+"loading" = "Loading…";
+"retry" = "Retry";
+"items" = "items";
+"done" = "Done";
+"cancel" = "Cancel";
+
+/* Diagnostics */
+"diagnostics_group_hint" = "If App Group shows “none”, worse_query cannot issue extensions: sideloaded builds often drop the entitlement. Check with the group identifier below.";
+"diagnostics_run" = "Run probes";
+"diagnostics_results" = "Results";
+"diagnostics_credit" = "Sandbox escape: worse_query by Taj C (forcequit) — GPL-3.0-or-later.";
