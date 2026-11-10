@@ -154,10 +154,8 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
         NSArray<NSString *> *groups = wq_entitled_groups();
         for (NSString *candidate in groups) {
             if (![candidate isKindOfClass:NSString.class]) continue;
-            if ([NSFileManager.defaultManager containerURLForSecurityApplicationGroupIdentifier:candidate]) {
-                group = [candidate copy];
-                break;
-            }
+            group = [candidate copy];
+            break;
         }
         NSLog(@"[WQAccess] entitled groups: %@ -> using %@",
               groups.count ? [groups componentsJoinedByString:@", "] : @"none", group ?: @"NONE");
@@ -167,6 +165,16 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
 
 + (void)setAppGroupOverride:(NSString *)group {
     gGroupOverride = [group copy];
+}
+
++ (NSString *)appGroupContainerPath {
+    NSString *group = [self appGroup];
+    if (group.length == 0) return nil;
+
+    // The first call is what makes UIKit create the container, so this must
+    // run before worse_query looks for its Library/Caches swap point.
+    NSURL *url = [NSFileManager.defaultManager containerURLForSecurityApplicationGroupIdentifier:group];
+    return url.path;
 }
 
 + (NSString *)lastError { return gLastError; }

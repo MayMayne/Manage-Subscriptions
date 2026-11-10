@@ -33,6 +33,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// The App Group this app is entitled to, or nil when the build or install
 /// method did not give it one (worse_query cannot work without a group).
 + (nullable NSString *)appGroup;
+
+/// Path of the App Group container, creating it if iOS has not done so yet.
+/// nil when the group exists but the container cannot be resolved.
++ (nullable NSString *)appGroupContainerPath;
 + (void)setAppGroupOverride:(nullable NSString *)group;
 
 /// Consumes a sandbox extension for `path` (and, if needed, its parents) and
