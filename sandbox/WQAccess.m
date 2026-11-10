@@ -84,7 +84,9 @@ static NSMutableDictionary<NSString *, NSNumber *> *gGrants;
 static NSMutableArray<NSString *> *gGrantOrder;
 static NSRecursiveLock *gGrantLock;
 // The kernel caps how many extensions one process may hold.
-static const NSUInteger kWQMaxGrants = 180;
+// The kernel refused further extensions at 179 held in testing; stay well
+// below that so a query for a new path never fails because the table is full.
+static const NSUInteger kWQMaxGrants = 96;
 
 static NSMutableSet<NSString *> *gDenied;
 static NSString *gGroupOverride;
@@ -266,7 +268,15 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
         }
     }
     if (handle < 0) {
-        [WQLog log:@"grant failed %@: %lld (%@)", key, handle, worse_query_error(handle)];
+        static NSInteger failures;
+        failures++;
+        // One line per path is already too much during a 190-container walk;
+        // keep a running counter and only spell out the first ten.
+        if (failures <= 10) {
+            [WQLog log:@"grant failed %@: %lld (%@)", key, handle, worse_query_error(handle)];
+        } else if (failures == 11) {
+            [WQLog log:@"further grant failures are counted, not logged"];
+        }
         [gGrantLock lock];
         // Only remember terminal answers. A transient failure should be
         // retried, a refused extension will not change.

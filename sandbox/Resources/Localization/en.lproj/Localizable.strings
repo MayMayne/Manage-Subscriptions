@@ -75,3 +75,8 @@
 
 "storekit_no_scene" = "No active window scene.";
 "storekit_failed" = "StoreKit could not open the sheet: %@. Sideloaded builds have no StoreKit entitlement — use the inspector below instead.";
+
+"share_log" = "Share log file";
+"log_section_header" = "Diagnostics log";
+"log_path_footer" = "Also visible in the Files app under On My iPhone → Sandbox → wq.log. Path: %@";
+"log_empty_hint" = "Run a scan or a probe first; lines appear here and in Documents/wq.log.";

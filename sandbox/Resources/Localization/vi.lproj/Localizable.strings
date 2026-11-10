@@ -75,3 +75,8 @@
 
 "storekit_no_scene" = "Không có window scene đang hoạt động.";
 "storekit_failed" = "StoreKit không mở được bảng: %@. Bản sideload không có entitlement StoreKit — dùng trình đọc bên dưới thay thế.";
+
+"share_log" = "Chia sẻ tệp nhật ký";
+"log_section_header" = "Nhật ký chẩn đoán";
+"log_path_footer" = "Cũng xem được trong app Tệp tại Trên iPhone của tôi → Sandbox → wq.log. Đường dẫn: %@";
+"log_empty_hint" = "Hãy chạy quét hoặc kiểm tra trước; các dòng sẽ hiện ở đây và trong Documents/wq.log.";
