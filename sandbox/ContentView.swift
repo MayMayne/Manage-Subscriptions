@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import StoreKit
 
 struct ContentView: View {
@@ -186,7 +187,7 @@ struct SettingsRowLabel: View {
     let icon: String
     let iconColor: Color
     let title: String
-    var subtitle: String?
+    var subtitle: String? = nil
     var showExternalLink: Bool = false
 
     var body: some View {

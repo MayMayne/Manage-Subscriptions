@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 final class SandboxSubscriptionsModel: ObservableObject {
     @Published var records: [SandboxSubscription] = []

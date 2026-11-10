@@ -56,3 +56,8 @@
 "diagnostics_run" = "Run probes";
 "diagnostics_results" = "Results";
 "diagnostics_credit" = "Sandbox escape: worse_query by Taj C (forcequit) — GPL-3.0-or-later.";
+
+/* Diagnostics group override */
+"diagnostics_apply_group" = "Apply";
+"diagnostics_group_override" = "App Group override";
+"diagnostics_group_override_footer" = "Use this when the entitlement is present but the container was never created (common with sideloads). Enter a group you control.";

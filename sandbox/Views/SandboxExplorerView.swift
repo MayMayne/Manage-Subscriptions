@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import QuickLook
 
 // MARK: - Model
@@ -48,6 +49,11 @@ final class ExplorerModel: ObservableObject {
         items = []
         load()
     }
+}
+
+/// Holds the file copied into our own sandbox so QuickLook can preview it.
+final class PreviewModel: ObservableObject {
+    @Published var url: URL?
 }
 
 // MARK: - Root
@@ -106,7 +112,7 @@ struct SandboxExplorerView: View {
 
 struct FileBrowserView: View {
     @StateObject private var model: ExplorerModel
-    @State private var pendingURL: URL?
+    @StateObject private var preview = PreviewModel()
 
     init(path: String) {
         _model = StateObject(wrappedValue: ExplorerModel(path: path))
@@ -168,7 +174,7 @@ struct FileBrowserView: View {
             }
         }
         .onAppear { if model.items.isEmpty { model.load() } }
-        .quickLookPreview($pendingURL)
+        .quickLookPreview($preview.url)
     }
 
     @ViewBuilder
@@ -223,6 +229,7 @@ struct FileBrowserView: View {
     /// Copies the file into the app's own sandbox so QuickLook can show it,
     /// since the original path is outside what QL may read.
     private func open(_ item: WQItem) {
+        let preview = self.preview
         DispatchQueue.global(qos: .userInitiated).async {
             let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("preview", isDirectory: true)
@@ -231,7 +238,7 @@ struct FileBrowserView: View {
             guard let data = WQAccess.data(atPath: item.path, maxBytes: 16 << 20) else { return }
             try? data.write(to: destination)
             DispatchQueue.main.async {
-                pendingURL = destination
+                preview.url = destination
             }
         }
     }

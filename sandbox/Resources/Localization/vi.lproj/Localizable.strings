@@ -56,3 +56,8 @@
 "diagnostics_run" = "Chạy kiểm tra";
 "diagnostics_results" = "Kết quả";
 "diagnostics_credit" = "Kỹ thuật thoát sandbox: worse_query của Taj C (forcequit) — GPL-3.0-or-later.";
+
+/* Diagnostics group override */
+"diagnostics_apply_group" = "Áp dụng";
+"diagnostics_group_override" = "Ghi đè App Group";
+"diagnostics_group_override_footer" = "Dùng khi đã có entitlement nhưng container chưa được tạo (hay gặp với bản sideload). Nhập group bạn kiểm soát.";
