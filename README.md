@@ -25,14 +25,34 @@
 - **🔧 Sandbox Settings** - Quick access to app settings
 - **💳 Manage Sandbox Subscriptions** - View and manage in-app subscriptions via StoreKit
 - **🛍️ Manage App Store Subscriptions** - Opens App Store subscription management externally
+- **🔓 Sandbox Inspector** (iOS 26/27) - Reads StoreKit receipts and transaction stores
+  inside other apps' containers with the `worse_query` sandbox escape: sandbox
+  subscriptions, a container file browser and exploit diagnostics. See
+  [WORSE_QUERY.md](WORSE_QUERY.md).
 
 ---
 
 ## 🛠️ Requirements
 
-- iOS 15.0+
+- iOS 15.0+ (the Sandbox Inspector needs iOS 26.0–26.7.2 or 27.0–27.2.x)
 - Xcode 14.0+
 - Swift 5.0+
+- An **App Groups** entitlement — `worse_query` cannot issue a sandbox extension
+  without one. Sideload tools that strip entitlements will disable the inspector.
+
+---
+
+## 📥 Unsigned IPA
+
+`.github/workflows/build-unsigned-ipa.yml` builds a release IPA on a macOS runner and
+re-signs it with `ldid` so the App Group entitlement survives:
+
+```bash
+gh workflow run build-unsigned-ipa.yml
+```
+
+Install the artifact with TrollStore (keeps entitlements), or with Sideloadly /
+AltStore if your certificate includes the App Group capability.
 
 ---
 
