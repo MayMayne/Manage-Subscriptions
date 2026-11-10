@@ -372,21 +372,11 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
     return paths ?: @[];
 }
 
-+ (NSArray<WQItem *> *)childrenOfDirectory:(NSString *)path {
-    NSArray<WQItem *> *direct = [self contentsOfDirectory:path];
-    if (direct.count > 0) return direct;
-
-    NSString *failure = [self lastError];
-    if (failure.length && [failure containsString:@"Permission denied"]) {
-        // EACCES on a root-owned parent cannot be fixed by an extension.
-        return direct;
-    }
-
-    NSArray<NSString *> *leaked = [self leakedChildrenOfDirectory:path limit:0];
-    if (leaked.count == 0) return direct;
-
-    NSMutableArray<WQItem *> *items = [NSMutableArray arrayWithCapacity:leaked.count];
-    for (NSString *child in leaked) {
+// Wraps leaked paths into items. Never called implicitly: a file id scan takes
+// minutes, so only an explicit "deep scan" action may use it.
++ (NSArray<WQItem *> *)itemsForLeakedPaths:(NSArray<NSString *> *)paths {
+    NSMutableArray<WQItem *> *items = [NSMutableArray arrayWithCapacity:paths.count];
+    for (NSString *child in paths) {
         // lstat() on the child still needs an extension of its own.
         [self ensureAccess:child];
         WQItem *item = wq_item_at_path(child, 0);
@@ -397,6 +387,10 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
         return [a.name caseInsensitiveCompare:b.name];
     }];
     return items;
+}
+
++ (NSArray<WQItem *> *)childrenOfDirectory:(NSString *)path {
+    return [self contentsOfDirectory:path];
 }
 
 #pragma mark - Container discovery
@@ -481,7 +475,7 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
             @"/var/containers/Shared/SystemGroup",
         ];
         for (NSString *parent in parents) {
-            NSArray<WQItem *> *children = [self childrenOfDirectory:parent];
+            NSArray<WQItem *> *children = [self contentsOfDirectory:parent];
             NSString *failure = [self lastError];
             [items addObjectsFromArray:children];
             [diagnostics addObject:[NSString stringWithFormat:@"%@:%lu%@", parent.lastPathComponent,

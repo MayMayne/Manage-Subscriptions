@@ -61,3 +61,7 @@
 "diagnostics_apply_group" = "Áp dụng";
 "diagnostics_group_override" = "Ghi đè App Group";
 "diagnostics_group_override_footer" = "Dùng khi đã có entitlement nhưng container chưa được tạo (hay gặp với bản sideload). Nhập group bạn kiểm soát.";
+
+/* Deep scan */
+"deep_scan" = "Quét sâu (chậm)";
+"deep_scan_empty" = "Quét sâu không thấy gì ở đây.";

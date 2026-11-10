@@ -73,9 +73,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// callers should ask the user before running it. Returns paths only.
 + (NSArray<NSString *> *)leakedChildrenOfDirectory:(NSString *)path limit:(NSUInteger)limit;
 
-/// Children of `path`, listed directly when possible and leaked when not
-/// (the leak scan can take minutes).
+/// Alias of contentsOfDirectory. Directories below a container parent can
+/// only be discovered with -leakedChildrenOfDirectory:limit:, which is slow
+/// enough that it must stay behind an explicit user action.
 + (NSArray<WQItem *> *)childrenOfDirectory:(NSString *)path;
+
+/// Turns paths returned by -leakedChildrenOfDirectory:limit: into items.
++ (NSArray<WQItem *> *)itemsForLeakedPaths:(NSArray<NSString *> *)paths;
 
 /// Breadth-first search below `root`. An empty `query` matches everything.
 /// `progress` returns NO to stop the walk.

@@ -61,3 +61,7 @@
 "diagnostics_apply_group" = "Apply";
 "diagnostics_group_override" = "App Group override";
 "diagnostics_group_override_footer" = "Use this when the entitlement is present but the container was never created (common with sideloads). Enter a group you control.";
+
+/* Deep scan */
+"deep_scan" = "Deep scan (slow)";
+"deep_scan_empty" = "Deep scan found nothing here.";

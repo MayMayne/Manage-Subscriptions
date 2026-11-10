@@ -37,6 +37,26 @@ final class ExplorerModel: ObservableObject {
         }
     }
 
+    /// File id scan for parents that cannot be listed (minutes on a used
+    /// device). Only ever runs when the user asks for it.
+    func deepScan() {
+        isLoading = true
+        errorText = nil
+        let target = path
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let leaked = WQAccess.leakedChildrenOfDirectory(target, limit: 0)
+            let items = WQAccess.itemsForLeakedPaths(leaked)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.items = items
+                self.errorText = items.isEmpty
+                    ? NSLocalizedString("deep_scan_empty", comment: "")
+                    : nil
+                self.isLoading = false
+            }
+        }
+    }
+
     func navigate(to item: WQItem) {
         path = item.path
         items = []
@@ -170,6 +190,17 @@ struct FileBrowserView: View {
                     model.load()
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button {
+                        model.deepScan()
+                    } label: {
+                        Label(NSLocalizedString("deep_scan", comment: ""), systemImage: "magnifyingglass.circle")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
         }
