@@ -2,8 +2,7 @@
 //  SandboxSubscriptionsView.swift
 //  sandbox
 //
-//  Lists subscriptions found in StoreKit receipts and transaction stores that
-//  belong to the sandbox environment, read through worse_query.
+//  Lists subscriptions found in StoreKit receipts and transaction stores.
 //
 
 import SwiftUI
@@ -13,15 +12,23 @@ final class SandboxSubscriptionsModel: ObservableObject {
     @Published var records: [SandboxSubscription] = []
     @Published var isScanning = false
     @Published var status = ""
+    @Published var found = 0
     @Published var scanned = 0
     @Published var total = 0
+    @Published var lastPath = ""
     @Published var errorText: String?
 
     private let scanner = SubscriptionScanner()
+    private var scanStarted = Date()
 
     var progress: Double {
         guard total > 0 else { return isScanning ? 0.05 : 0 }
         return min(1, Double(scanned) / Double(total))
+    }
+
+    var elapsed: String {
+        let seconds = Int(Date().timeIntervalSince(scanStarted))
+        return seconds < 60 ? "\(seconds)s" : "\(seconds / 60)m \(seconds % 60)s"
     }
 
     func scan(includeAppContainers: Bool = false) {
@@ -30,11 +37,16 @@ final class SandboxSubscriptionsModel: ObservableObject {
             errorText = NSLocalizedString("sandbox_no_group", comment: "")
             return
         }
+
         isScanning = true
         errorText = nil
         records = []
+        found = 0
         scanned = 0
         total = 0
+        lastPath = ""
+        status = NSLocalizedString("sandbox_scan_starting", comment: "")
+        scanStarted = Date()
 
         scanner.onProgress = { [weak self] progress in
             DispatchQueue.main.async {
@@ -42,19 +54,22 @@ final class SandboxSubscriptionsModel: ObservableObject {
                 self.scanned = progress.scanned
                 self.total = Swift.max(progress.total, 1)
                 self.status = progress.current
+                self.found = progress.found
+                self.lastPath = progress.lastPath
             }
         }
 
         let scanner = self.scanner
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let found = scanner.scan(includeAppContainers: includeAppContainers)
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let results = scanner.scan(includeAppContainers: includeAppContainers)
             DispatchQueue.main.async {
                 guard let self else { return }
-                self.records = found
+                self.records = results
+                self.found = results.count
                 self.isScanning = false
-                self.status = found.isEmpty
+                self.status = results.isEmpty
                     ? NSLocalizedString("sandbox_scan_empty", comment: "")
-                    : String(format: NSLocalizedString("sandbox_scan_found", comment: ""), found.count)
+                    : String(format: NSLocalizedString("sandbox_scan_found", comment: ""), results.count)
             }
         }
     }
@@ -69,17 +84,30 @@ final class SandboxSubscriptionsModel: ObservableObject {
 struct SandboxSubscriptionsView: View {
     @StateObject private var model = SandboxSubscriptionsModel()
     @State private var selected: SandboxSubscription?
+    @State private var showingLog = false
 
     var body: some View {
         List {
             Section {
                 if model.isScanning {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         ProgressView(value: model.progress)
-                        Text(model.status)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
+                        HStack {
+                            Text(model.status)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("\(model.found) found · \(model.elapsed)")
+                                .font(.caption2.monospaced())
+                                .foregroundColor(.secondary)
+                        }
+                        if !model.lastPath.isEmpty {
+                            Text(model.lastPath)
+                                .font(.caption2.monospaced())
+                                .foregroundColor(Color(UIColor.tertiaryLabel))
+                                .lineLimit(2)
+                                .truncationMode(.middle)
+                        }
                         Button(role: .destructive) {
                             model.cancel()
                         } label: {
@@ -131,6 +159,14 @@ struct SandboxSubscriptionsView: View {
                     Text(NSLocalizedString("sandbox_results_header", comment: ""))
                 }
             }
+
+            Section {
+                Button {
+                    showingLog = true
+                } label: {
+                    Label(NSLocalizedString("view_log", comment: ""), systemImage: "doc.text.magnifyingglass")
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("sandbox_subscriptions", comment: ""))
@@ -138,8 +174,8 @@ struct SandboxSubscriptionsView: View {
         .sheet(item: $selected) { record in
             SubscriptionDetailView(record: record)
         }
-        .onAppear {
-            if model.records.isEmpty && !model.isScanning { model.scan() }
+        .sheet(isPresented: $showingLog) {
+            WQLogView()
         }
     }
 }

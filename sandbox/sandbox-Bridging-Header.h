@@ -12,5 +12,6 @@
 #import "Exploit/worse_query.h"
 #import "Exploit/pathleak.h"
 #import "WQAccess.h"
+#import "WQLog.h"
 
 #endif /* sandbox_Bridging_Header_h */

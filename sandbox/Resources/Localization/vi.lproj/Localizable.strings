@@ -66,3 +66,9 @@
 "deep_scan" = "Quét sâu (chậm)";
 "deep_scan_empty" = "Quét sâu không thấy gì ở đây.";
 "sandbox_scan_deep" = "Quét sâu (container app, chậm)";
+
+"view_log" = "Nhật ký quét";
+"log_empty" = "Nhật ký trống.";
+"copy" = "Sao chép";
+"clear_log" = "Xoá nhật ký";
+"sandbox_scan_starting" = "Đang bắt đầu…";

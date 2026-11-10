@@ -66,3 +66,9 @@
 "deep_scan" = "Deep scan (slow)";
 "deep_scan_empty" = "Deep scan found nothing here.";
 "sandbox_scan_deep" = "Deep scan (app containers, slow)";
+
+"view_log" = "Scan Log";
+"log_empty" = "The log is empty.";
+"copy" = "Copy";
+"clear_log" = "Clear Log";
+"sandbox_scan_starting" = "Starting…";

@@ -9,6 +9,7 @@
 #import "WQAccess.h"
 #import "Exploit/worse_query.h"
 #import "Exploit/pathleak.h"
+#import "WQLog.h"
 
 #include <limits.h>
 #import <dlfcn.h>
@@ -250,9 +251,10 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
         }
     }
     if (handle < 0) {
-        NSLog(@"[WQAccess] grant failed for %@: %lld (%@)", key, handle, worse_query_error(handle));
+        [WQLog log:@"grant failed %@: %lld (%@)", key, handle, worse_query_error(handle)];
         return NO;
     }
+    [WQLog log:@"grant ok %@ (%@ flags)", key, usedLegacy ? @"legacy" : @"standard"];
     preferLegacy = usedLegacy ? 1 : 0;
 
     [gGrantLock lock];
