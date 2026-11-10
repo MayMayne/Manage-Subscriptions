@@ -167,7 +167,7 @@ final class SubscriptionScanner {
             for subpath in Self.appSubpaths {
                 let directory = container.path + "/" + subpath
                 guard WQAccess.ensureAccess(directory) else { continue }
-                for item in WQAccess.childrenOfDirectory(directory) where !item.isDirectory {
+                for item in WQAccess.children(ofDirectory: directory) where !item.isDirectory {
                     guard item.size > 0, item.size <= (4 << 20) else { continue }
                     let name = item.name.lowercased()
                     guard name.contains("receipt") || name.contains("storekit") ||
@@ -200,7 +200,7 @@ final class SubscriptionScanner {
             for candidate in ["_MASReceipt/receipt", "StoreKit/receipt"] {
                 let path = container.path + "/" + candidate
                 guard WQAccess.exists(path) else { continue }
-                harvest(path, owner: container.path.lastPathComponent, source: .receipt)
+                harvest(path, owner: Self.ownerName(for: container), source: .receipt)
             }
         }
 

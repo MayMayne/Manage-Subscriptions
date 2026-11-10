@@ -71,15 +71,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// Children of a container parent that cannot be listed (iOS 27 gives no
 /// extension for the parent). Brute-forces file ids; slow on first use, so
 /// callers should ask the user before running it. Returns paths only.
-+ (NSArray<NSString *> *)leakedChildrenOfDirectory:(NSString *)path limit:(NSUInteger)limit;
++ (NSArray<NSString *> *)leakedChildrenOfDirectory:(NSString *)path limit:(NSUInteger)limit
+    NS_SWIFT_NAME(leakedChildren(ofDirectory:limit:));
 
 /// Alias of contentsOfDirectory. Directories below a container parent can
 /// only be discovered with -leakedChildrenOfDirectory:limit:, which is slow
 /// enough that it must stay behind an explicit user action.
-+ (NSArray<WQItem *> *)childrenOfDirectory:(NSString *)path;
++ (NSArray<WQItem *> *)childrenOfDirectory:(NSString *)path
+    NS_SWIFT_NAME(children(ofDirectory:));
 
 /// Turns paths returned by -leakedChildrenOfDirectory:limit: into items.
-+ (NSArray<WQItem *> *)itemsForLeakedPaths:(NSArray<NSString *> *)paths;
++ (NSArray<WQItem *> *)itemsForLeakedPaths:(NSArray<NSString *> *)paths
+    NS_SWIFT_NAME(items(forLeakedPaths:));
 
 /// Breadth-first search below `root`. An empty `query` matches everything.
 /// `progress` returns NO to stop the walk.

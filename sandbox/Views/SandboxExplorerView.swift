@@ -44,8 +44,8 @@ final class ExplorerModel: ObservableObject {
         errorText = nil
         let target = path
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let leaked = WQAccess.leakedChildrenOfDirectory(target, limit: 0)
-            let items = WQAccess.itemsForLeakedPaths(leaked)
+            let leaked = WQAccess.leakedChildren(ofDirectory: target, limit: 0)
+            let items = WQAccess.items(forLeakedPaths: leaked)
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.items = items
