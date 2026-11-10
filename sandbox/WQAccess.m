@@ -309,7 +309,9 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
-        NSString *child = [dirPath stringByAppendingPathComponent:@(entry->d_name)];
+        NSString *childName = [NSString stringWithUTF8String:entry->d_name];
+        if (childName.length == 0) continue;
+        NSString *child = [dirPath stringByAppendingPathComponent:childName];
         WQItem *item = wq_item_at_path(child, 0);
         if (!item) continue;   // dangling symlink or raced away
         [items addObject:item];
@@ -428,7 +430,7 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
                         const char *rawPath = object ? getPath(object) : NULL;
                         if (!rawPath || !rawPath[0]) return true;
 
-                        NSString *path = wq_normalize(@(rawPath));
+                        NSString *path = wq_normalize([NSString stringWithUTF8String:rawPath]);
                         if (path.length == 0 || [seen containsObject:path]) return true;
                         [seen addObject:path];
 
@@ -437,7 +439,7 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
 
                         NSString *identifier = nil;
                         const char *rawIdentifier = getIdentifier ? getIdentifier(object) : NULL;
-                        if (rawIdentifier && rawIdentifier[0]) identifier = @(rawIdentifier);
+                        if (rawIdentifier && rawIdentifier[0]) identifier = [NSString stringWithUTF8String:rawIdentifier];
 
                         // Newer builds hide the identifier from the object and
                         // expose it in the metadata dictionary instead.
@@ -445,7 +447,7 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
                             xpc_object_t info = getInfo(object);
                             if (info && xpc_get_type(info) == XPC_TYPE_DICTIONARY) {
                                 const char *value = xpc_dictionary_get_string(info, "MCMMetadataIdentifier");
-                                if (value && value[0]) identifier = @(value);
+                                if (value && value[0]) identifier = [NSString stringWithUTF8String:value];
                             }
                         }
 

@@ -66,7 +66,7 @@ struct SandboxSubscription: Identifiable, Hashable {
 // MARK: - Scanner
 
 final class SubscriptionScanner {
-    struct Progress {
+    struct ScanProgress {
         var scanned: Int = 0
         var total: Int = 0
         var current: String = ""
@@ -88,7 +88,7 @@ final class SubscriptionScanner {
         "jws", "storekit", "receipt", "transaction",
     ]
 
-    var onProgress: ((Progress) -> Void)?
+    var onProgress: ((ScanProgress) -> Void)?
     private var cancelled = false
 
     func cancel() { cancelled = true }
@@ -210,7 +210,7 @@ final class SubscriptionScanner {
     }
 
     private func report(total: Int, scanned: Int = 0, current: String = "", records: [SandboxSubscription] = []) {
-        onProgress?(Progress(scanned: scanned, total: max(total, 1), current: current, records: records))
+        onProgress?(ScanProgress(scanned: scanned, total: max(total, 1), current: current, records: records))
     }
 
     /// A readable name for a container: bundle id when known, else its UUID.
