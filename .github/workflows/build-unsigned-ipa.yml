@@ -42,6 +42,16 @@ jobs:
           xcodebuild -version
           xcodebuild -showsdks | head -20
 
+      - name: Install iOS simulator runtime
+        run: |
+          # actool refuses to build the asset catalog when no runtime matches
+          # the SDK (macos-26 images ship Xcode 26.0 without a runtime).
+          xcrun simctl runtime list 2>/dev/null | head -20 || true
+          xcodebuild -downloadPlatform iOS -buildVersion '23A339' \
+            || xcodebuild -downloadPlatform iOS \
+            || echo "runtime download failed; continuing"
+          xcrun simctl runtime list 2>/dev/null | head -20 || true
+
       - name: Install ldid
         run: |
           brew install ldid 2>/dev/null || brew install ProcursusTeam/ldid/ldid
@@ -53,13 +63,29 @@ jobs:
           OUT="$RUNNER_TEMP/out"
           mkdir -p "$OUT"
           SIGNING="CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= EXPANDED_CODE_SIGN_IDENTITY="
+          # actool needs a simulator runtime matching the SDK; with the runtime
+          # installed the asset catalog builds normally.
           EXTRA="ENABLE_PREVIEWS=NO ENABLE_ON_DEMAND_RESOURCES=NO ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOLS=NO ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS=NO SUPPORTED_PLATFORMS=iphoneos IPHONEOS_DEPLOYMENT_TARGET=16.0 COMPILER_INDEX_STORE_ENABLE=NO CONFIGURATION_BUILD_DIR=$OUT"
-          xcodebuild build \
+          if ! xcodebuild build \
             -project sandbox.xcodeproj \
             -target sandbox \
             -configuration Release \
             -sdk iphoneos \
-            $SIGNING $EXTRA
+            $SIGNING $EXTRA; then
+            echo "::warning::build with the asset catalog failed; retrying without it"
+            # The app icon is cosmetic: build again skipping the catalog so a
+            # runtime problem on the runner cannot block the IPA.
+            rm -rf "$OUT"
+            mv sandbox/Assets.xcassets "$RUNNER_TEMP/Assets.xcassets"
+            xcodebuild build \
+              -project sandbox.xcodeproj \
+              -target sandbox \
+              -configuration Release \
+              -sdk iphoneos \
+              $SIGNING $EXTRA \
+              ASSETCATALOG_COMPILER_APPICON_NAME= ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME=
+            mv "$RUNNER_TEMP/Assets.xcassets" sandbox/Assets.xcassets
+          fi
 
           APP="$OUT/sandbox.app"
           if [ ! -d "$APP" ]; then
