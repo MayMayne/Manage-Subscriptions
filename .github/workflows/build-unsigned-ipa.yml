@@ -13,58 +13,73 @@ permissions:
 jobs:
   build:
     name: Build Unsigned IPA
-    runs-on: macos-15
+    runs-on: macos-14
     timeout-minutes: 45
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode
+      - name: Select newest Xcode
         run: |
-          if [ -d "/Applications/Xcode_26.app" ]; then
-            sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer
-          elif [ -d "/Applications/Xcode_26.0.app" ]; then
-            sudo xcode-select -s /Applications/Xcode_26.0.app/Contents/Developer
-          elif [ -d "/Applications/Xcode.app" ]; then
-            sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          set -euo pipefail
+          # Prefer the newest Xcode installed on the runner: the project uses
+          # the Xcode 16+ project format (objectVersion 77).
+          BEST=""
+          BEST_VER="0"
+          for APP in /Applications/Xcode*.app; do
+            [ -d "$APP" ] || continue
+            VER=$(defaults read "$APP/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo 0)
+            MAJOR=${VER%%.*}
+            case "$MAJOR" in ''|*[!0-9]*) MAJOR=0;; esac
+            if [ "$MAJOR" -gt "$BEST_VER" ]; then BEST_VER="$MAJOR"; BEST="$APP"; fi
+          done
+          if [ -n "$BEST" ]; then
+            sudo xcode-select -s "$BEST/Contents/Developer"
+            echo "Using $BEST"
           fi
           xcode-select -p
           xcodebuild -version
-          xcodebuild -showsdks || true
+          xcodebuild -showsdks | head -20
 
       - name: Install ldid
         run: |
           brew install ldid 2>/dev/null || brew install ProcursusTeam/ldid/ldid
           ldid -v || true
 
-      # Signed with a throwaway identity so the entitlement-bearing build runs;
-      # the entitlements are stripped again below and re-applied with ldid.
       - name: Build
         run: |
           set -euo pipefail
+          OUT="$RUNNER_TEMP/out"
+          mkdir -p "$OUT"
           SIGNING="CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= EXPANDED_CODE_SIGN_IDENTITY="
-          EXTRA="ENABLE_PREVIEWS=NO ENABLE_ON_DEMAND_RESOURCES=NO ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOLS=NO ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS=NO SUPPORTED_PLATFORMS=iphoneos IPHONEOS_DEPLOYMENT_TARGET=16.0 COMPILER_INDEX_STORE_ENABLE=NO"
+          EXTRA="ENABLE_PREVIEWS=NO ENABLE_ON_DEMAND_RESOURCES=NO ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOLS=NO ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS=NO SUPPORTED_PLATFORMS=iphoneos IPHONEOS_DEPLOYMENT_TARGET=16.0 COMPILER_INDEX_STORE_ENABLE=NO CONFIGURATION_BUILD_DIR=$OUT"
           xcodebuild build \
             -project sandbox.xcodeproj \
             -target sandbox \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             $SIGNING $EXTRA
+
+          APP="$OUT/sandbox.app"
+          if [ ! -d "$APP" ]; then
+            echo "sandbox.app not at $APP; searching"
+            APP=$(find "$RUNNER_TEMP" -maxdepth 6 -name 'sandbox.app' -type d | head -1)
+          fi
+          test -d "$APP" || { echo "::error::app bundle not found"; exit 1; }
+          echo "APP=$APP" >> "$GITHUB_ENV"
 
       - name: Package unsigned IPA with entitlements
         run: |
           set -euo pipefail
-          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/sandbox.app"
-          test -d "$APP" || { echo "app not found"; find "$RUNNER_TEMP/DerivedData/Build/Products" -maxdepth 3; exit 1; }
+          APP="$APP"
 
           # Drop whatever signature Xcode produced, then sign with ldid so the
           # App Group entitlement survives for TrollStore / Sideloadly.
           codesign --remove "$APP" 2>/dev/null || true
           rm -rf "$APP/_CodeSignature" "$APP/embedded.mobileprovision"
           ldid -Ssandbox/sandbox.entitlements "$APP"
-          echo "--- entitlements ---"
+          echo "--- embedded entitlements ---"
           ldid -e "$APP" || true
 
           mkdir -p "$RUNNER_TEMP/export/Payload"
