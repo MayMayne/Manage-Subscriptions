@@ -47,11 +47,19 @@ struct WQLogView: View {
                             .padding(12)
                     }
                 } else {
-                    ContentUnavailableView(
-                        NSLocalizedString("log_empty", comment: ""),
-                        systemImage: "doc.text",
-                        description: Text(NSLocalizedString("log_empty_hint", comment: ""))
-                    )
+                    VStack(spacing: 8) {
+                        Image(systemName: "doc.text")
+                            .font(.largeTitle)
+                            .foregroundColor(.secondary)
+                        Text(NSLocalizedString("log_empty", comment: ""))
+                            .font(.headline)
+                        Text(NSLocalizedString("log_empty_hint", comment: ""))
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .background(Color(UIColor.systemGroupedBackground))
