@@ -1,11 +1,6 @@
 name: Build Unsigned IPA
 
 on:
-  push:
-    branches: [ main, master ]
-    paths-ignore:
-      - "ipa/**"
-      - "**/*.md"
   workflow_dispatch:
 
 concurrency:
