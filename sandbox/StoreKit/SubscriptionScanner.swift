@@ -167,7 +167,7 @@ final class SubscriptionScanner {
             for subpath in Self.appSubpaths {
                 let directory = container.path + "/" + subpath
                 guard WQAccess.ensureAccess(directory) else { continue }
-                for item in WQAccess.contentsOfDirectory(directory) where !item.isDirectory {
+                for item in WQAccess.childrenOfDirectory(directory) where !item.isDirectory {
                     guard item.size > 0, item.size <= (4 << 20) else { continue }
                     let name = item.name.lowercased()
                     guard name.contains("receipt") || name.contains("storekit") ||

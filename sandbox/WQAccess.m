@@ -14,15 +14,39 @@
 #import <dirent.h>
 #import <errno.h>
 #import <fcntl.h>
+#import <stdio.h>
 #import <string.h>
 #import <sys/stat.h>
 #import <sys/xattr.h>
 #import <unistd.h>
 #import <xpc/xpc.h>
 
+// SecTask lives in Security.framework and the two entry points are private,
+// so they are resolved at runtime instead of being linked directly.
 typedef struct __SecTask *SecTaskRef;
-extern SecTaskRef SecTaskCreateFromSelf(CFAllocatorRef allocator);
-extern CFTypeRef SecTaskCopyValueForEntitlement(SecTaskRef task, CFStringRef entitlement, CFErrorRef *error);
+typedef SecTaskRef (*SecTaskCreateFromSelf_fn)(CFAllocatorRef);
+typedef CFTypeRef (*SecTaskCopyValueForEntitlement_fn)(SecTaskRef, CFStringRef, CFErrorRef *);
+
+static NSArray<NSString *> *wq_entitled_groups(void) {
+    void *security = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_NOW | RTLD_LOCAL);
+    if (!security) security = dlopen("/usr/lib/libSecurity.dylib", RTLD_NOW | RTLD_LOCAL);
+    if (!security) return nil;
+
+    SecTaskCreateFromSelf_fn create = (SecTaskCreateFromSelf_fn)dlsym(security, "SecTaskCreateFromSelf");
+    SecTaskCopyValueForEntitlement_fn copy = (SecTaskCopyValueForEntitlement_fn)dlsym(security, "SecTaskCopyValueForEntitlement");
+    if (!create || !copy) { dlclose(security); return nil; }
+
+    SecTaskRef task = create(kCFAllocatorDefault);
+    if (!task) { dlclose(security); return nil; }
+    CFTypeRef value = copy(task, CFSTR("com.apple.security.application-groups"), NULL);
+    CFRelease(task);
+    dlclose(security);
+
+    if (!value) return nil;
+    if (CFGetTypeID(value) != CFArrayGetTypeID()) { CFRelease(value); return nil; }
+    NSArray *groups = (__bridge_transfer NSArray *)value;
+    return [groups isKindOfClass:NSArray.class] ? groups : nil;
+}
 
 #pragma mark - Item
 
@@ -41,6 +65,8 @@ typedef void *(*cq_single_fn)(void *);
 typedef void (*cq_free_fn)(void *);
 typedef void (*cq_iterate_fn)(void *, bool (^)(void *));
 typedef const char *(*co_path_fn)(void *);
+typedef const char *(*co_id_fn)(void *);
+typedef xpc_object_t (*co_metadata_fn)(void *);
 
 static void *wq_mcm_handle(void) {
     static void *handle;
@@ -70,9 +96,10 @@ static void wq_set_error(NSString *message) {
 @implementation WQAccess
 
 + (BOOL)isSupported {
+    // worse_query covers iOS 26.0 – 26.7.2 and 27.0 – 27.2.x.
     NSOperatingSystemVersion v = NSProcessInfo.processInfo.operatingSystemVersion;
-    if (v.majorVersion == 26) return YES;
-    if (v.majorVersion == 27) return YES;
+    if (v.majorVersion == 26) return v.minorVersion <= 7;
+    if (v.majorVersion == 27) return v.minorVersion <= 2;
     return NO;
 }
 
@@ -82,13 +109,7 @@ static void wq_set_error(NSString *message) {
     static NSString *group;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        SecTaskRef task = SecTaskCreateFromSelf(kCFAllocatorDefault);
-        NSArray *groups = nil;
-        if (task) {
-            CFTypeRef value = SecTaskCopyValueForEntitlement(task, CFSTR("com.apple.security.application-groups"), NULL);
-            if (value) groups = (__bridge_transfer NSArray *)value;
-            CFRelease(task);
-        }
+        NSArray *groups = wq_entitled_groups();
         for (id candidate in groups) {
             if (![candidate isKindOfClass:NSString.class]) continue;
             if ([NSFileManager.defaultManager containerURLForSecurityApplicationGroupIdentifier:candidate]) {
@@ -250,18 +271,26 @@ static WQItem *wq_item_at_path(NSString *path, uint64_t containerClass) {
     return item;
 }
 
+static NSString *wq_container_identifier(NSString *path);
+
 + (NSString *)containerIdentifier:(NSString *)path {
     return wq_container_identifier(path);
 }
 
 static NSString *wq_container_identifier(NSString *path) {
     NSString *plistPath = [path stringByAppendingPathComponent:@".com.apple.mobile_container_manager.metadata.plist"];
-    // On iOS 27 the container root itself needs an extension before its
-    // metadata is readable; ensureAccess is a no-op when it already opens.
-    if (access(plistPath.fileSystemRepresentation, R_OK) != 0) [WQAccess ensureAccess:path];
-    NSDictionary *plist = [NSDictionary dictionaryWithContentsOfFile:plistPath];
+    // Reading the metadata is itself a sandbox-checked operation, so go
+    // through dataAtPath (which grants) rather than +dictionaryWithContentsOfFile:.
+    [WQAccess ensureAccess:path];
+    NSData *data = [WQAccess dataAtPath:plistPath maxBytes:(1 << 20)];
+    if (!data) return nil;
+
+    id plist = [NSPropertyListSerialization propertyListWithData:data
+                                                         options:NSPropertyListImmutable
+                                                          format:NULL
+                                                           error:NULL];
     if (![plist isKindOfClass:NSDictionary.class]) return nil;
-    id identifier = plist[@"MCMMetadataIdentifier"];
+    id identifier = ((NSDictionary *)plist)[@"MCMMetadataIdentifier"];
     return [identifier isKindOfClass:NSString.class] ? identifier : nil;
 }
 
@@ -285,6 +314,8 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
         cq_iterate_fn iterate = (cq_iterate_fn)dlsym(mgr, "container_query_iterate_results_sync");
         cq_free_fn freeQuery = (cq_free_fn)dlsym(mgr, "container_query_free");
         co_path_fn getPath = (co_path_fn)dlsym(mgr, "container_object_get_path");
+        co_id_fn getIdentifier = (co_id_fn)dlsym(mgr, "container_object_get_identifier");
+        co_metadata_fn getMetadata = (co_metadata_fn)dlsym(mgr, "container_object_get_info");
 
         if (create && setClass && iterate && freeQuery && getPath) {
             NSMutableSet<NSString *> *seen = [NSMutableSet set];
@@ -302,7 +333,23 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
                         [seen addObject:path];
                         WQItem *item = wq_item_at_path(path, cls);
                         if (item) {
-                            item.identifier = wq_container_identifier(item.path) ?: item.name;
+                            const char *rawIdentifier = getIdentifier ? getIdentifier(object) : NULL;
+                            NSString *fromObject = rawIdentifier && rawIdentifier[0]
+                                ? [NSString stringWithUTF8String:rawIdentifier] : nil;
+
+                            // Newer builds hide the identifier from the object
+                            // and expose it in the metadata dictionary instead.
+                            if (!fromObject && getMetadata) {
+                                xpc_object_t info = getMetadata(object);
+                                if (info && xpc_get_type(info) == XPC_TYPE_DICTIONARY) {
+                                    const char *value = xpc_dictionary_get_string(info, "MCMMetadataIdentifier");
+                                    if (value && value[0]) fromObject = [NSString stringWithUTF8String:value];
+                                }
+                            }
+                            // Only fall back to reading the metadata plist when
+                            // the object did not expose its identifier: one
+                            // grant + read per container is not free.
+                            item.identifier = fromObject ?: item.name;
                             item.bundleID = wq_bundle_id_from_identifier(item.identifier);
                             [items addObject:item];
                             count++;
@@ -332,7 +379,7 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
             @"/var/containers/Shared/SystemGroup",
         ];
         for (NSString *parent in parents) {
-            NSArray<WQItem *> *children = [self contentsOfDirectory:parent];
+            NSArray<WQItem *> *children = [self childrenOfDirectory:parent];
             NSString *failure = [self lastError];
             [items addObjectsFromArray:children];
             [diagnostics addObject:[NSString stringWithFormat:@"%@:%lu%@", parent.lastPathComponent,
@@ -448,6 +495,8 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
 
     NSMutableArray<WQItem *> *items = [NSMutableArray arrayWithCapacity:leaked.count];
     for (NSString *child in leaked) {
+        // lstat() on the child still needs an extension of its own.
+        [self ensureAccess:child];
         WQItem *item = wq_item_at_path(child, 0);
         if (item) [items addObject:item];
     }
