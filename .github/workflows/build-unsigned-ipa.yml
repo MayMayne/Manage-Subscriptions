@@ -52,10 +52,10 @@ jobs:
           EXTRA="ENABLE_PREVIEWS=NO ENABLE_ON_DEMAND_RESOURCES=NO ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOLS=NO ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS=NO SUPPORTED_PLATFORMS=iphoneos IPHONEOS_DEPLOYMENT_TARGET=16.0 COMPILER_INDEX_STORE_ENABLE=NO"
           xcodebuild build \
             -project sandbox.xcodeproj \
-            -scheme sandbox \
+            -target sandbox \
             -configuration Release \
+            -sdk iphoneos \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            -destination 'generic/platform=iOS' \
             $SIGNING $EXTRA
 
       - name: Package unsigned IPA with entitlements
