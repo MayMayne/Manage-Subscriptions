@@ -47,6 +47,9 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)grant:(NSString *)path;
 /// Drops every cached extension.
 + (void)releaseGrants;
+
+/// Forgets which paths were refused, so the next call asks again.
++ (void)forgetDeniedPaths;
 /// Number of cached extensions.
 + (NSUInteger)grantCount;
 

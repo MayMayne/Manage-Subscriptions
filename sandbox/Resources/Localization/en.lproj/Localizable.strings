@@ -72,3 +72,6 @@
 "copy" = "Copy";
 "clear_log" = "Clear Log";
 "sandbox_scan_starting" = "Starting…";
+
+"storekit_no_scene" = "No active window scene.";
+"storekit_failed" = "StoreKit could not open the sheet: %@. Sideloaded builds have no StoreKit entitlement — use the inspector below instead.";

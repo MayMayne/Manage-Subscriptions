@@ -181,6 +181,9 @@ final class SubscriptionScanner {
         }
 
         WQLog.message("scan start (app containers: \(includeAppContainers ? "yes" : "no"))")
+        // A fresh scan should be able to ask again: an earlier run may have
+        // been refused while the group container was still being created.
+        if includeAppContainers { WQAccess.forgetDeniedPaths() }
 
         let roots = Self.scanRoots(includeAppContainers: includeAppContainers)
         report(total: Swift.max(roots.count, 1), current: "Locating containers")
@@ -262,27 +265,23 @@ final class SubscriptionScanner {
             roots.append(Root(name: name, path: path))
         }
 
-        // 1. App groups: listable on 27.x. Only groups whose name suggests
-        //    commerce are worth a deep walk; the rest are cheap to skip.
+        // 1. Every app group. A first version filtered these by name and
+        //    matched nothing, which is why the scan reported 0 files.
         let groups = WQAccess.contentsOfDirectory("/var/mobile/Containers/Shared/AppGroup")
         WQLog.message("app groups: \(groups.count)")
         for item in groups {
-            let identifier = (item.identifier ?? item.name).lowercased()
-            guard storeKeywords.contains(where: { identifier.contains($0) }) else { continue }
             add(ownerName(for: item), item.path)
         }
 
-        // 2. System container root: a "System Data" folder.
+        // 2. Every entry in the system container root.
         let system = WQAccess.contentsOfDirectory("/var/containers/Data/System")
         WQLog.message("system data: \(system.count)")
         for item in system {
-            let identifier = (item.identifier ?? item.name).lowercased()
-            guard storeKeywords.contains(where: { identifier.contains($0) }) else { continue }
             add(ownerName(for: item), item.path)
         }
 
-        // 3. System groups: the parent refuses an extension, but known names
-        //    open when asked for directly.
+        // 3. System groups refuse an extension at the parent, so only the
+        //    names that are known to exist are probed.
         for name in knownSystemGroupNames() {
             let path = "/var/containers/Shared/SystemGroup/" + name
             guard WQAccess.exists(path) else { continue }
@@ -299,6 +298,7 @@ final class SubscriptionScanner {
             }
         }
 
+        WQLog.message("scan roots: \(roots.count)")
         return roots
     }
 

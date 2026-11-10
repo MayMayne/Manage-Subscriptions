@@ -86,6 +86,7 @@ static NSRecursiveLock *gGrantLock;
 // The kernel caps how many extensions one process may hold.
 static const NSUInteger kWQMaxGrants = 180;
 
+static NSMutableSet<NSString *> *gDenied;
 static NSString *gGroupOverride;
 static NSString *gContainerSummary = @"not scanned";
 static NSString *gLastError;
@@ -181,6 +182,13 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
 + (NSString *)lastError { return gLastError; }
 + (void)clearLastError { gLastError = nil; }
 
++ (void)forgetDeniedPaths {
+    if (!gGrantLock) return;   // nothing has been asked yet
+    [gGrantLock lock];
+    [gDenied removeAllObjects];
+    [gGrantLock unlock];
+}
+
 + (void)releaseGrants {
     @synchronized (NSNull.null) {
         for (NSString *key in gGrantOrder) worse_query_release(gGrants[key].longLongValue);
@@ -200,6 +208,7 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
     dispatch_once(&once, ^{
         gGrants = [NSMutableDictionary new];
         gGrantOrder = [NSMutableArray new];
+        gDenied = [NSMutableSet new];
         gGrantLock = [NSRecursiveLock new];
     });
 
@@ -208,6 +217,12 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
     if (group.length == 0) return NO;
 
     [gGrantLock lock];
+    if ([gDenied containsObject:key]) {
+        // Asking again costs a query and the same answer; the kernel will not
+        // change its mind for this path in this process.
+        [gGrantLock unlock];
+        return NO;
+    }
     NSNumber *known = gGrants[key];
     if (known) {
         [gGrantOrder removeObject:key];
@@ -252,6 +267,13 @@ static NSString *wq_bundle_id_from_identifier(NSString *identifier) {
     }
     if (handle < 0) {
         [WQLog log:@"grant failed %@: %lld (%@)", key, handle, worse_query_error(handle)];
+        [gGrantLock lock];
+        // Only remember terminal answers. A transient failure should be
+        // retried, a refused extension will not change.
+        if (handle == -1 || handle == -2 || handle == -5 || handle == -6 || handle == -255) {
+            [gDenied addObject:key];
+        }
+        [gGrantLock unlock];
         return NO;
     }
     [WQLog log:@"grant ok %@ (%@ flags)", key, usedLegacy ? @"legacy" : @"standard"];

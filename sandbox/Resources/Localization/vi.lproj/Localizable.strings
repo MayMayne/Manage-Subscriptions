@@ -72,3 +72,6 @@
 "copy" = "Sao chép";
 "clear_log" = "Xoá nhật ký";
 "sandbox_scan_starting" = "Đang bắt đầu…";
+
+"storekit_no_scene" = "Không có window scene đang hoạt động.";
+"storekit_failed" = "StoreKit không mở được bảng: %@. Bản sideload không có entitlement StoreKit — dùng trình đọc bên dưới thay thế.";

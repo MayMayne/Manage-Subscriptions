@@ -25,6 +25,7 @@ struct ContentView: View {
     }
 
     private var platformSupported: Bool { WQAccess.isSupported() }
+    @State private var storeKitResult: String?
 
     var body: some View {
         NavigationStack {
@@ -96,7 +97,7 @@ struct ContentView: View {
                 } header: {
                     Text(NSLocalizedString("subscriptions_header", comment: ""))
                 } footer: {
-                    Text(NSLocalizedString("subscriptions_footer", comment: ""))
+                    Text(storeKitResult ?? NSLocalizedString("subscriptions_footer", comment: ""))
                 }
 
                 // Sandbox inspection, powered by worse_query
@@ -163,9 +164,21 @@ struct ContentView: View {
     }
 
     private func openSandboxSubscriptions() {
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
+            storeKitResult = NSLocalizedString("storekit_no_scene", comment: "")
+            return
+        }
         Task {
-            try? await AppStore.showManageSubscriptions(in: scene)
+            do {
+                try await AppStore.showManageSubscriptions(in: scene)
+                storeKitResult = nil
+            } catch {
+                // Sideloaded builds have no StoreKit entitlement, so this
+                // throws or does nothing; say so instead of failing silently.
+                storeKitResult = String(format: NSLocalizedString("storekit_failed", comment: ""),
+                                        error.localizedDescription)
+                WQLog.message("showManageSubscriptions failed: \(error)")
+            }
         }
     }
 
