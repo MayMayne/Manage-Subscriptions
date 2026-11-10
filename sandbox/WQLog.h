@@ -22,9 +22,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// and record the reason. Safe to call more than once.
 + (void)installCrashHandlers;
 
-+ (NSString *)logPath;
-+ (NSString *)logContents;
-+ (void)clearLog;
++ (NSString *)logPath NS_SWIFT_NAME(logPath());
++ (NSString *)logContents NS_SWIFT_NAME(logContents());
++ (void)clearLog NS_SWIFT_NAME(clearLog());
 
 @end
 
