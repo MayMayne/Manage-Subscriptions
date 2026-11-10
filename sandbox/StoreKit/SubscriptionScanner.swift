@@ -142,7 +142,7 @@ final class SubscriptionScanner {
         }
 
         let containers = WQAccess.containers()
-        report(total: max(containers.count, 1), current: "Containers", records: records)
+        report(total: Swift.max(containers.count, 1), current: "Containers", records: records)
 
         // App containers: bounded look into the places StoreKit writes to.
         let appContainers = containers.filter { $0.path.contains("/Data/Application/") }
@@ -210,7 +210,7 @@ final class SubscriptionScanner {
     }
 
     private func report(total: Int, scanned: Int = 0, current: String = "", records: [SandboxSubscription] = []) {
-        onProgress?(ScanProgress(scanned: scanned, total: max(total, 1), current: current, records: records))
+        onProgress?(ScanProgress(scanned: scanned, total: Swift.max(total, 1), current: current, records: records))
     }
 
     /// A readable name for a container: bundle id when known, else its UUID.

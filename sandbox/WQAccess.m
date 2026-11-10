@@ -10,6 +10,7 @@
 #import "Exploit/worse_query.h"
 #import "Exploit/pathleak.h"
 
+#include <limits.h>
 #import <dlfcn.h>
 #import <dirent.h>
 #import <errno.h>

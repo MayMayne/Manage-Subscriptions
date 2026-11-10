@@ -40,7 +40,7 @@ final class SandboxSubscriptionsModel: ObservableObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.scanned = progress.scanned
-                self.total = max(progress.total, 1)
+                self.total = Swift.max(progress.total, 1)
                 self.status = progress.current
             }
         }
