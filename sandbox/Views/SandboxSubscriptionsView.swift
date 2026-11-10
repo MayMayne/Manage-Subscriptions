@@ -24,7 +24,7 @@ final class SandboxSubscriptionsModel: ObservableObject {
         return min(1, Double(scanned) / Double(total))
     }
 
-    func scan() {
+    func scan(includeAppContainers: Bool = false) {
         guard !isScanning else { return }
         guard WQAccess.appGroup() != nil else {
             errorText = NSLocalizedString("sandbox_no_group", comment: "")
@@ -47,7 +47,7 @@ final class SandboxSubscriptionsModel: ObservableObject {
 
         let scanner = self.scanner
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let found = scanner.scan()
+            let found = scanner.scan(includeAppContainers: includeAppContainers)
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.records = found
@@ -93,6 +93,13 @@ struct SandboxSubscriptionsView: View {
                     } label: {
                         Label(NSLocalizedString("sandbox_scan", comment: ""), systemImage: "magnifyingglass")
                     }
+
+                    Button {
+                        model.scan(includeAppContainers: true)
+                    } label: {
+                        Label(NSLocalizedString("sandbox_scan_deep", comment: ""), systemImage: "clock.arrow.circlepath")
+                    }
+                    .disabled(model.isScanning)
                 }
 
                 if let error = model.errorText {

@@ -65,3 +65,4 @@
 /* Deep scan */
 "deep_scan" = "Deep scan (slow)";
 "deep_scan_empty" = "Deep scan found nothing here.";
+"sandbox_scan_deep" = "Deep scan (app containers, slow)";

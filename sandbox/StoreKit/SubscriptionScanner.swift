@@ -3,9 +3,17 @@
 //  sandbox
 //
 //  Finds subscription records inside the containers worse_query reaches.
-//  Everything below is evidence-based: it walks the containers the container
-//  manager reports and only keeps files that actually parse as a StoreKit
-//  receipt or a StoreKit 2 transaction.
+//  Everything is evidence-based: it walks containers that actually open and
+//  keeps only files that parse as a StoreKit receipt or transaction.
+//
+//  Measured reach on iOS 27.2 (device):
+//    AppGroup                 189 entries     <- listable
+//    /var/containers/Data/System 22 entries   <- listable
+//    Data/Application, PluginKitPlugin, InternalDaemon,
+//    Shared/SystemGroup, Bundle/Application   <- parent has no extension
+//  The container manager query returns nothing on this release, so container
+//  paths come from the container parents and from LaunchServices-style naming
+//  instead of from MCM.
 //
 
 import Foundation
@@ -95,7 +103,9 @@ final class SubscriptionScanner {
 
     // MARK: Scan
 
-    func scan() -> [SandboxSubscription] {
+    /// `includeAppContainers` runs a file id scan, which takes minutes on a
+    /// used device — only an explicit user action may set it.
+    func scan(includeAppContainers: Bool = false) -> [SandboxSubscription] {
         var records: [SandboxSubscription] = []
         var seen = Set<String>()
 
@@ -141,66 +151,31 @@ final class SubscriptionScanner {
             }
         }
 
-        let containers = WQAccess.containers()
-        report(total: Swift.max(containers.count, 1), current: "Containers", records: records)
+        let targets = Self.scanTargets(includeAppContainers: includeAppContainers)
+        report(total: Swift.max(targets.count, 1), current: "Locating containers", records: records)
 
-        // App containers: bounded look into the places StoreKit writes to.
-        let appContainers = containers.filter { $0.path.contains("/Data/Application/") }
-
-        // Store containers: deeper walk, they hold the transaction records.
-        let storeContainers = containers.filter { container in
-            let identifier = (container.identifier ?? container.name).lowercased()
-            return Self.storeKeywords.contains { identifier.contains($0) }
-        }
-
-        // App bundles, when the container manager exposes them at all.
-        let bundleContainers = containers.filter {
-            $0.path.contains("/Bundle/") && $0.path.hasSuffix(".app")
-        }
-
-        var index = 0
-        for container in appContainers {
+        for (index, target) in targets.enumerated() {
             if cancelled { break }
-            index += 1
-            let owner = Self.ownerName(for: container)
-            report(total: containers.count, scanned: index, current: owner, records: records)
-            for subpath in Self.appSubpaths {
-                let directory = container.path + "/" + subpath
-                guard WQAccess.ensureAccess(directory) else { continue }
-                for item in WQAccess.children(ofDirectory: directory) where !item.isDirectory {
-                    guard item.size > 0, item.size <= (4 << 20) else { continue }
-                    let name = item.name.lowercased()
-                    guard name.contains("receipt") || name.contains("storekit") ||
-                          Self.interestingExtensions.contains((item.path as NSString).pathExtension.lowercased()) else { continue }
-                    harvest(item.path, owner: owner, source: .receipt)
-                }
-            }
-        }
+            report(total: targets.count, scanned: index, current: target.name, records: records)
 
-        for container in storeContainers {
-            if cancelled { break }
-            index += 1
-            let owner = Self.ownerName(for: container)
-            report(total: containers.count, scanned: index, current: owner, records: records)
-            guard WQAccess.ensureAccess(container.path) else { continue }
-            let hits = WQAccess.searchPath(container.path, query: "", maxDepth: 6, limit: 600, progress: nil)
+            // Files directly inside, and one or two levels down.
+            let hits = WQAccess.searchPath(target.path, query: "", maxDepth: 4, limit: 800, progress: nil)
             for hit in hits where !hit.isDirectory {
                 guard hit.size > 0, hit.size <= (4 << 20) else { continue }
                 let name = hit.name.lowercased()
+                let ext = (hit.path as NSString).pathExtension.lowercased()
                 guard name.contains("receipt") || name.contains("transaction") ||
-                      name.contains("storekit") || name.hasSuffix(".jws") else { continue }
-                harvest(hit.path, owner: owner, source: .transaction)
+                      name.contains("storekit") || Self.interestingExtensions.contains(ext) else { continue }
+                harvest(hit.path, owner: target.name, source: .transaction)
             }
-        }
 
-        for container in bundleContainers {
-            if cancelled { break }
-            index += 1
-            report(total: containers.count, scanned: index, current: container.name, records: records)
-            for candidate in ["_MASReceipt/receipt", "StoreKit/receipt"] {
-                let path = container.path + "/" + candidate
-                guard WQAccess.exists(path) else { continue }
-                harvest(path, owner: Self.ownerName(for: container), source: .receipt)
+            // StoreKit writes receipts to fixed names inside app containers.
+            for subpath in Self.appSubpaths {
+                for leaf in ["_MASReceipt/receipt", "StoreKit/receipt", "receipt"] {
+                    let candidate = target.path + "/" + subpath + "/" + leaf
+                    guard WQAccess.exists(candidate) else { continue }
+                    harvest(candidate, owner: target.name, source: .receipt)
+                }
             }
         }
 
@@ -211,6 +186,78 @@ final class SubscriptionScanner {
 
     private func report(total: Int, scanned: Int = 0, current: String = "", records: [SandboxSubscription] = []) {
         onProgress?(ScanProgress(scanned: scanned, total: Swift.max(total, 1), current: current, records: records))
+    }
+
+    // MARK: Targets
+
+    struct Target {
+        let name: String
+        let path: String
+    }
+
+    /// Containers worth walking: app groups (listable), the system container
+    /// root, StoreKit-looking children of the system groups, and every app
+    /// container whose path can be recovered.
+    static func scanTargets(includeAppContainers: Bool) -> [Target] {
+        var targets: [Target] = []
+        var seen = Set<String>()
+
+        func add(_ name: String, _ path: String) {
+            guard !seen.contains(path) else { return }
+            seen.insert(path)
+            targets.append(Target(name: name, path: path))
+        }
+
+        // 1. Container manager results (populated on some releases).
+        for container in WQAccess.containers() {
+            add(ownerName(for: container), container.path)
+        }
+
+        // 2. App groups: listable on 27.x, and where shared app data lives.
+        for item in WQAccess.contentsOfDirectory("/var/mobile/Containers/Shared/AppGroup") {
+            add(ownerName(for: item), item.path)
+        }
+
+        // 3. System container root (listable on 27.x): a "System Data" folder.
+        for item in WQAccess.contentsOfDirectory("/var/containers/Data/System") {
+            add(ownerName(for: item), item.path)
+        }
+
+        // 4. System groups: the parent refuses an extension but its known
+        //    children open when named, so probe the ones that could hold
+        //    StoreKit / commerce state.
+        let systemGroupRoot = "/var/containers/Shared/SystemGroup"
+        for name in knownSystemGroupNames() {
+            let path = systemGroupRoot + "/" + name
+            guard WQAccess.exists(path) else { continue }
+            let lowercased = name.lowercased()
+            guard storeKeywords.contains(where: { lowercased.contains($0) }) else { continue }
+            add(name, path)
+        }
+
+        // 5. App containers: the parent is blocked but each child opens once
+        //    its path is known, so use the ids the system leaked either via
+        //    the app group listing or via fsgetpath.
+        guard includeAppContainers else { return targets }
+        for path in WQAccess.leakedChildren(ofDirectory: "/var/mobile/Containers/Data/Application",
+                                            limit: 400) {
+            add((path as NSString).lastPathComponent, path)
+        }
+
+        return targets
+    }
+
+    /// Names of system group containers that are worth probing. Kept small:
+    /// each miss costs a query.
+    static func knownSystemGroupNames() -> [String] {
+        [
+            "systemgroup.com.apple.storekit",
+            "systemgroup.com.apple.appstore",
+            "systemgroup.com.apple.itunesstore",
+            "systemgroup.com.apple.commerce",
+            "systemgroup.com.apple.appstored",
+            "systemgroup.com.apple.mobilegestaltcache",
+        ]
     }
 
     /// A readable name for a container: bundle id when known, else its UUID.

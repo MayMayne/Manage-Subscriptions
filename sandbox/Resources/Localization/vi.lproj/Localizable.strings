@@ -65,3 +65,4 @@
 /* Deep scan */
 "deep_scan" = "Quét sâu (chậm)";
 "deep_scan_empty" = "Quét sâu không thấy gì ở đây.";
+"sandbox_scan_deep" = "Quét sâu (container app, chậm)";
