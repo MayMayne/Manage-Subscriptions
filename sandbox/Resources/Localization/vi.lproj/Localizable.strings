@@ -80,3 +80,5 @@
 "log_section_header" = "Nhật ký chẩn đoán";
 "log_path_footer" = "Cũng xem được trong app Tệp tại Trên iPhone của tôi → Sandbox → wq.log. Đường dẫn: %@";
 "log_empty_hint" = "Hãy chạy quét hoặc kiểm tra trước; các dòng sẽ hiện ở đây và trong Documents/wq.log.";
+
+"storekit_fallback" = "StoreKit không mở được bảng (%@). Bản sideload không có danh tính App Store — đã mở mục Đăng ký trong Cài đặt thay thế.";

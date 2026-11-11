@@ -163,9 +163,12 @@ struct ContentView: View {
         UIApplication.shared.open(url)
     }
 
+    /// Apple's sheet needs a real App Store app identity, which a sideloaded
+    /// build does not have (SKInternalErrorDomain 12). When it fails, fall
+    /// back to the Settings subscriptions page, which always works.
     private func openSandboxSubscriptions() {
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
-            storeKitResult = NSLocalizedString("storekit_no_scene", comment: "")
+            openSettingsSubscriptions()
             return
         }
         Task {
@@ -173,13 +176,29 @@ struct ContentView: View {
                 try await AppStore.showManageSubscriptions(in: scene)
                 storeKitResult = nil
             } catch {
-                // Sideloaded builds have no StoreKit entitlement, so this
-                // throws or does nothing; say so instead of failing silently.
-                storeKitResult = String(format: NSLocalizedString("storekit_failed", comment: ""),
-                                        error.localizedDescription)
                 WQLog.message("showManageSubscriptions failed: \(error)")
+                storeKitResult = String(format: NSLocalizedString("storekit_fallback", comment: ""),
+                                        error.localizedDescription)
+                openSettingsSubscriptions()
             }
         }
+    }
+
+    /// Settings → Apple Account → Subscriptions. Works in any app, signed or
+    /// not, because it leaves the app entirely.
+    private func openSettingsSubscriptions() {
+        let candidates = [
+            "App-prefs:APPLE_ACCOUNT&path=SUBSCRIPTIONS",
+            "app-settings:",
+        ]
+        for string in candidates {
+            guard let url = URL(string: string) else { continue }
+            if UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
+                return
+            }
+        }
+        openAppStoreSubscriptions()
     }
 
     private func openAppStoreSubscriptions() {
